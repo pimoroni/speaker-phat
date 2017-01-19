@@ -59,10 +59,10 @@ typedef struct _snd_pcm_scope_ameter {
   snd_pcm_scope_ameter_channel_t *channels;
   snd_pcm_uframes_t old;
   int top;
-  unsigned int bar_width;
   unsigned int decay_ms;
   unsigned int peak_ms;
   unsigned int led_brightness;
+  unsigned int bar_reverse;
 } snd_pcm_scope_ameter_t;
 
 int i2c = 0;
@@ -205,7 +205,7 @@ static void level_update(snd_pcm_scope_t * scope)
 
     int led;
     for(led = 0; led < 10; led++){
-       int val = 0;
+       int val = 0, index = led;
 
        if(bar > brightness){
            val = brightness;
@@ -216,7 +216,11 @@ static void level_update(snd_pcm_scope_t * scope)
            bar = 0;
        }
        
-       wiringPiI2CWriteReg8(i2c, 0x01 + stupid_led_mappings[led], val);
+       if(level->bar_reverse == 1){
+		   index = 9 - led;
+	   }
+       
+       wiringPiI2CWriteReg8(i2c, 0x01 + stupid_led_mappings[index], val);
     }
     wiringPiI2CWriteReg8(i2c, 0x16, 0x01);
 
@@ -246,10 +250,12 @@ snd_pcm_scope_ops_t level_ops = {
   reset:level_reset,
 };
 
-int snd_pcm_scope_ameter_open(snd_pcm_t * pcm, const char *name,
-			      unsigned int bar_width,
-			      unsigned int decay_ms, unsigned int peak_ms,
-                              unsigned int led_brightness,
+int snd_pcm_scope_ameter_open(snd_pcm_t * pcm,
+                  const char *name,
+			      unsigned int decay_ms,
+			      unsigned int peak_ms,
+                  unsigned int led_brightness,
+                  unsigned int bar_reverse,
 			      snd_pcm_scope_t ** scopep)
 {
   snd_pcm_scope_t *scope, *s16;
@@ -264,7 +270,7 @@ int snd_pcm_scope_ameter_open(snd_pcm_t * pcm, const char *name,
     return -ENOMEM;
   }
   level->pcm = pcm;
-  level->bar_width = bar_width;
+  level->bar_reverse = bar_reverse;
   level->decay_ms = decay_ms;
   level->peak_ms = peak_ms;
   level->led_brightness = led_brightness;
@@ -303,7 +309,7 @@ int _snd_pcm_scope_ameter_open(snd_pcm_t * pcm, const char *name,
 {
   snd_config_iterator_t i, next;
   snd_pcm_scope_t *scope;
-  long bar_width = -1, decay_ms = -1, peak_ms = -1, led_brightness = -1;
+  long decay_ms = -1, peak_ms = -1, led_brightness = -1, bar_reverse = -1;
   int err;
 
   num_meters = MAX_METERS;
@@ -343,6 +349,14 @@ int _snd_pcm_scope_ameter_open(snd_pcm_t * pcm, const char *name,
       }
       continue;
     }*/
+    if (strcmp(id, "bar_reverse") == 0) {
+      err = snd_config_get_integer(n, &bar_reverse);
+      if (err < 0) {
+        SNDERR("Invalid type for %", id);
+        return -EINVAL;
+      }
+      continue;
+    }
     if (strcmp(id, "brightness") == 0) {
       err = snd_config_get_integer(n, &led_brightness);
       if (err < 0) {
@@ -371,14 +385,21 @@ int _snd_pcm_scope_ameter_open(snd_pcm_t * pcm, const char *name,
     return -EINVAL;
   }
 
-  if (decay_ms < 0)
+  if (decay_ms < 0) {
     decay_ms = DECAY_MS;
-  if (peak_ms < 0)
+  }
+  if (peak_ms < 0) {
     peak_ms = PEAK_MS;
-  if (led_brightness < 0)
+  }
+  if (led_brightness < 0) {
     led_brightness = LED_BRIGHTNESS;
+  }
 
-  return snd_pcm_scope_ameter_open(pcm, name, bar_width, decay_ms,
-				   peak_ms, led_brightness, &scope);
+  return snd_pcm_scope_ameter_open(pcm, name, 
+                   decay_ms,
+				   peak_ms, 
+				   led_brightness, 
+				   bar_reverse,
+				   &scope);
 
 }
