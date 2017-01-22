@@ -23,22 +23,8 @@ DISCLAIMER
 
 productname="Speaker pHAT" # the name of the product to install
 scriptname="speakerphat-setup.sh" # the name of this script
-spacereq=1 # minimum size required on root partition in MB
-debugmode="no" # whether the script should use debug routines
-debuguser="none" # optional test git user to use in debug mode
-debugpoint="none" # optional git repo branch or tag to checkout
 forcesudo="no" # whether the script requires to be ran with root privileges
 promptreboot="no" # whether the script should always prompt user to reboot
-mininstall="no" # whether the script enforces minimum install routine
-customcmd="yes" # whether to execute commands specified before exit
-armhfonly="yes" # whether the script is allowed to run on other arch
-armv6="yes" # whether armv6 processors are supported
-armv7="yes" # whether armv7 processors are supported
-armv8="yes" # whether armv8 processors are supported
-raspbianonly="no" # whether the script is allowed to run on other OSes
-osreleases=( "Raspbian" ) # list os-releases supported
-oswarning=() # list experimental os-releases
-osdeny=( "Darwin" "Debian" "Kali" "Kano" "Mate" "PiTop" "Ubuntu" ) # list os-releases specifically disallowed
 
 FORCE=$1
 DEVICE_TREE=true
@@ -138,68 +124,22 @@ sysreboot() {
     fi
 }
 
-arch_check() {
-    IS_ARMHF=false
-    IS_ARMv6=false
+apt_pkg_req() {
+    APT_CHK=$(dpkg-query -W -f='${Status}\n' "$1" 2> /dev/null | grep "install ok installed")
 
-    if uname -m | grep "armv.l" > /dev/null; then
-        IS_ARMHF=true
-        if uname -m | grep "armv6l" > /dev/null; then
-            IS_ARMv6=true
-        fi
+    if [ "" == "$APT_CHK" ]; then
+        echo "$1 is required"
+        true
+    else
+        echo "$1 is already installed"
+        false
     fi
 }
 
-os_check() {
-    IS_MACOSX=false
-    IS_RASPBIAN=false
-    IS_SUPPORTED=false
-    IS_EXPERIMENTAL=false
-    OS_NAME="Unknown"
-
-    if uname -s | grep "Darwin" > /dev/null; then
-        OS_NAME="Darwin" && IS_MACOSX=true
-    elif cat /etc/os-release | grep "Kali" > /dev/null; then
-        OS_NAME="Kali"
-    elif [ -d ~/.kano-settings ] || [ -d ~/.kanoprofile ]; then
-        OS_NAME="Kano"
-    elif [ -d ~/.config/ubuntu-mate ];then
-        OS_NAME="Mate"
-    elif [ -d ~/.pt-os-dashboard ] || [ -d ~/.pt-dashboard ] || [ -f ~/.pt-dashboard-config ]; then
-        OS_NAME="PiTop"
-    elif cat /etc/os-release | grep "Raspbian" > /dev/null; then
-        OS_NAME="Raspbian" && IS_RASPBIAN=true
-    elif cat /etc/os-release | grep "Debian" > /dev/null; then
-        OS_NAME="Debian"
-    elif cat /etc/os-release | grep "Ubuntu" > /dev/null; then
-        OS_NAME="Ubuntu"
-    fi
-
-    if [[ " ${osreleases[@]} " =~ " ${OS_NAME} " ]]; then
-        IS_SUPPORTED=true
-    fi
-    if [[ " ${oswarning[@]} " =~ " ${OS_NAME} " ]]; then
-        IS_EXPERIMENTAL=true
-    fi
-}
-
-raspbian_check() {
-    IS_SUPPORTED=false
-    IS_EXPERIMENTAL=false
-
-    if [ -f /etc/os-release ]; then
-        if cat /etc/os-release | grep "/sid" > /dev/null; then
-            IS_SUPPORTED=false && IS_EXPERIMENTAL=true
-        elif cat /etc/os-release | grep "stretch" > /dev/null; then
-            IS_SUPPORTED=false && IS_EXPERIMENTAL=true
-        elif cat /etc/os-release | grep "jessie" > /dev/null; then
-            IS_SUPPORTED=true && IS_EXPERIMENTAL=false
-        elif cat /etc/os-release | grep "wheezy" > /dev/null; then
-            IS_SUPPORTED=true && IS_EXPERIMENTAL=false
-        else
-            IS_SUPPORTED=false && IS_EXPERIMENTAL=false
-        fi
-    fi
+apt_pkg_install() {
+    echo "Installing $1..."
+    sudo apt-get --yes install "$1" 1> /dev/null || { echo -e "Apt failed to install $1!\nFalling back on pypi..." && return 1; }
+    echo
 }
 
 : <<'MAINSTART'
@@ -210,63 +150,6 @@ above this section for clarity, thanks!
 MAINSTART
 
 # checks and init
-
-arch_check
-os_check
-
-if [ $debugmode != "no" ]; then
-    echo "USER_HOME is $USER_HOME" && newline
-    echo "IS_RASPBIAN is $IS_RASPBIAN"
-    echo "IS_MACOSX is $IS_MACOSX"
-    echo "IS_SUPPORTED is $IS_SUPPORTED"
-    echo "IS_EXPERIMENTAL is $IS_EXPERIMENTAL"
-    newline
-fi
-
-if ! $IS_ARMHF; then
-    warning "This hardware is not supported, sorry!"
-    warning "Config files have been left untouched"
-    newline && exit 1
-fi
-
-if $IS_ARMv8 && [ $armv8 == "no" ]; then
-    warning "Sorry, your CPU is not supported by this installer"
-    newline && exit 1
-elif $IS_ARMv7 && [ $armv7 == "no" ]; then
-    warning "Sorry, your CPU is not supported by this installer"
-    newline && exit 1
-elif $IS_ARMv6 && [ $armv6 == "no" ]; then
-    warning "Sorry, your CPU is not supported by this installer"
-    newline && exit 1
-fi
-
-if [ $raspbianonly == "yes" ] && ! $IS_RASPBIAN;then
-        warning "This script is intended for Raspbian on a Raspberry Pi!"
-        newline && exit 1
-fi
-
-if $IS_RASPBIAN; then
-    raspbian_check
-    if ! $IS_SUPPORTED && ! $IS_EXPERIMENTAL; then
-        newline && warning "--- Warning ---" && newline
-        echo "The $productname installer"
-        echo "does not work on this version of Raspbian."
-        echo "Check https://github.com/$gitusername/$gitreponame"
-        echo "for additional information and support"
-        newline && exit 1
-    fi
-fi
-
-if ! $IS_SUPPORTED && ! $IS_EXPERIMENTAL; then
-        warning "Your operating system is not supported, sorry!"
-        newline && exit 1
-fi
-
-if $IS_EXPERIMENTAL; then
-    warning "Support for your operating system is experimental. Please visit"
-    warning "forums.pimoroni.com if you experience issues with this product."
-    newline
-fi
 
 if [ $forcesudo == "yes" ]; then
     sudocheck
@@ -283,83 +166,87 @@ echo "copied from the internet. Ensure they are from a"
 echo "trusted source."
 newline
 
+echo "Checking for required packages..."
+
+if apt_pkg_req "build-essential" &> /dev/null; then
+    sysupdate && apt_pkg_install "build-essential"
+fi
+if apt_pkg_req "libasound2-dev" &> /dev/null; then
+    sysupdate && apt_pkg_install "libasound2-dev"
+fi
+if apt_pkg_req "wiringpi" &> /dev/null; then
+    sysupdate && apt_pkg_install "wiringpi"
+fi
+
+echo "Enabling I2C interface..."
+
+sudo raspi-config nonint do_i2c 0
+sleep 1 && echo
+
 echo "Compiling & installing ALSA plugin..."
 
 cd alsa-plugin
-make
-sudo make install
+make && sudo make install
 cd ..
 
+echo -e "\nConfiguring sound output"
 
-newline
-if prompt "Would you like to use the speaker on Speaker pHAT?"; then
-    echo "Configuring sound output"
-
-    if [ -e $CONFIG ] && grep -q "^device_tree=$" $CONFIG; then
-        DEVICE_TREE=false
-    fi
-
-    if $DEVICE_TREE; then
-        echo -e "\nAdding Device Tree Entry to $CONFIG"
-
-        if [ -e $CONFIG ] && grep -q "^dtoverlay=i2s-mmap$" $CONFIG; then
-            echo "i2s-mmap overlay already active"
-        else
-            echo "dtoverlay=i2s-mmap" | sudo tee -a $CONFIG
-            ASK_TO_REBOOT=true
-        fi
-
-        if [ -e $CONFIG ] && grep -q "^dtoverlay=hifiberry-dac$" $CONFIG; then
-            echo "DAC overlay already active"
-        else
-            echo "dtoverlay=hifiberry-dac" | sudo tee -a $CONFIG
-            ASK_TO_REBOOT=true
-        fi
-
-        if [ -e $BLACKLIST ]; then
-            echo -e "\nCommenting out Blacklist entry in\n$BLACKLIST"
-            sudo sed -i -e "s|^blacklist[[:space:]]*i2c-bcm2708.*|#blacklist i2c-bcm2708|" \
-                        -e "s|^blacklist[[:space:]]*snd-soc-pcm512x.*|#blacklist snd-soc-pcm512x|" \
-                        -e "s|^blacklist[[:space:]]*snd-soc-wm8804.*|#blacklist snd-soc-wm8804|" $BLACKLIST &> /dev/null
-        fi
-    else
-        echo -e "\nNo Device Tree Detected, not supported\n" && exit 1
-    fi
-
-    if [ -e $CONFIG ] && grep -q -E "^dtparam=audio=on$" $CONFIG; then
-        bcm2835off="no"
-        echo -e "\nDisabling default sound driver"
-        sudo sed -i "s|^dtparam=audio=on$|#dtparam=audio=on|" $CONFIG &> /dev/null
-        if [ -e $LOADMOD ] && grep -q "^snd-bcm2835" $LOADMOD; then
-            sudo sed -i "s|^snd-bcm2835|#snd-bcm2835|" $LOADMOD &> /dev/null
-        fi
-        ASK_TO_REBOOT=true
-    elif [ -e $LOADMOD ] && grep -q "^snd-bcm2835" $LOADMOD; then
-        bcm2835off="no"
-        echo -e "\nDisabling default sound module"
-        sudo sed -i "s|^snd-bcm2835|#snd-bcm2835|" $LOADMOD &> /dev/null
-        ASK_TO_REBOOT=true
-    else
-        echo -e "\nDefault sound driver currently not loaded"
-        bcm2835off="yes"
-    fi
-
-    if [ -e /etc/asound.conf ]; then
-        if [ -e /etc/asound.conf.old ]; then
-            sudo rm -f /etc/asound.conf.old
-        fi
-        sudo mv /etc/asound.conf /etc/asound.conf.old
-    fi
-    sudo cp ./alsa-plugin/asound.conf /etc/asound.conf
-else
-    sudo sed -i "s|^#dtparam=audio=on$|dtparam=audio=on|" $CONFIG &> /dev/null
-    if [ -e /etc/asound.conf ]; then
-        if [ -e /etc/asound.conf.old ]; then
-            sudo rm -f /etc/asound.conf.old
-        fi
-        sudo mv /etc/asound.conf /etc/asound.conf.old
-    fi
+if [ -e $CONFIG ] && grep -q "^device_tree=$" $CONFIG; then
+    DEVICE_TREE=false
 fi
+
+if $DEVICE_TREE; then
+    echo -e "\nAdding Device Tree Entry to $CONFIG"
+
+    if [ -e $CONFIG ] && grep -q "^dtoverlay=i2s-mmap$" $CONFIG; then
+        echo "i2s-mmap overlay already active"
+    else
+        echo "dtoverlay=i2s-mmap" | sudo tee -a $CONFIG
+        ASK_TO_REBOOT=true
+    fi
+
+    if [ -e $CONFIG ] && grep -q "^dtoverlay=hifiberry-dac$" $CONFIG; then
+        echo "DAC overlay already active"
+    else
+        echo "dtoverlay=hifiberry-dac" | sudo tee -a $CONFIG
+        ASK_TO_REBOOT=true
+    fi
+
+    if [ -e $BLACKLIST ]; then
+        echo -e "\nCommenting out Blacklist entry in\n$BLACKLIST"
+        sudo sed -i -e "s|^blacklist[[:space:]]*i2c-bcm2708.*|#blacklist i2c-bcm2708|" \
+                    -e "s|^blacklist[[:space:]]*snd-soc-pcm512x.*|#blacklist snd-soc-pcm512x|" \
+                    -e "s|^blacklist[[:space:]]*snd-soc-wm8804.*|#blacklist snd-soc-wm8804|" $BLACKLIST &> /dev/null
+    fi
+else
+    echo -e "\nNo Device Tree Detected, not supported\n" && exit 1
+fi
+
+if [ -e $CONFIG ] && grep -q -E "^dtparam=audio=on$" $CONFIG; then
+    bcm2835off="no"
+    echo -e "\nDisabling default sound driver"
+    sudo sed -i "s|^dtparam=audio=on$|#dtparam=audio=on|" $CONFIG &> /dev/null
+    if [ -e $LOADMOD ] && grep -q "^snd-bcm2835" $LOADMOD; then
+        sudo sed -i "s|^snd-bcm2835|#snd-bcm2835|" $LOADMOD &> /dev/null
+    fi
+    ASK_TO_REBOOT=true
+elif [ -e $LOADMOD ] && grep -q "^snd-bcm2835" $LOADMOD; then
+    bcm2835off="no"
+    echo -e "\nDisabling default sound module"
+    sudo sed -i "s|^snd-bcm2835|#snd-bcm2835|" $LOADMOD &> /dev/null
+    ASK_TO_REBOOT=true
+else
+    echo -e "\nDefault sound driver currently not loaded"
+    bcm2835off="yes"
+fi
+
+if [ -e /etc/asound.conf ]; then
+    if [ -e /etc/asound.conf.old ]; then
+        sudo rm -f /etc/asound.conf.old
+    fi
+    sudo mv /etc/asound.conf /etc/asound.conf.old
+fi
+sudo cp ./alsa-plugin/asound.conf /etc/asound.conf
 
 newline && success "All done!" && newline
 echo "Enjoy your new $productname!" && newline
