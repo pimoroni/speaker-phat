@@ -184,12 +184,10 @@ echo "Installing ALSA plugin..."
 sudo cp ./dependencies/usr/local/lib/libphatmeter.so.0.0.0 /usr/local/lib/
 ln -s /usr/local/lib/libphatmeter.so.0.0.0 /usr/local/lib/libphatmeter.so.0 &> /dev/null
 ln -s /usr/local/lib/libphatmeter.so.0.0.0 /usr/local/lib/libphatmeter.so &> /dev/null
+sudo rm /etc/xdg/autostart/pulseaudio.desktop &> /dev/null # stops pulseaudio spwaning on boot
 pulseaudio -k &> /dev/null # kill pulseaudio daemon if running
-if [ -e $AUTOSTART ] && ! grep -q "@pulseaudio -k" $AUTOSTART; then
-    echo "@pulseaudio -k" >> $AUTOSTART
-fi # kills pulseaudio on boot
 
-echo -e "\nConfiguring sound output"
+echo -e "\nConfiguring sound output..."
 
 if [ -e $CONFIG ] && grep -q "^device_tree=$" $CONFIG; then
     DEVICE_TREE=false
