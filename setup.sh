@@ -27,18 +27,20 @@ forcesudo="no" # whether the script requires to be ran with root privileges
 promptreboot="no" # whether the script should always prompt user to reboot
 
 FORCE=$1
-DEVICE_TREE=true
 ASK_TO_REBOOT=false
 CURRENT_SETTING=false
+MIN_INSTALL=false
+FAILED_PKG=false
+REMOVE_PKG=false
 UPDATE_DB=false
 
+AUTOSTART=~/.config/lxsession/LXDE-pi/autostart
 BOOTCMD=/boot/cmdline.txt
 CONFIG=/boot/config.txt
 APTSRC=/etc/apt/sources.list
 INITABCONF=/etc/inittab
 BLACKLIST=/etc/modprobe.d/raspi-blacklist.conf
 LOADMOD=/etc/modules
-DTBODIR=/boot/overlays
 
 # function define
 
@@ -168,12 +170,6 @@ newline
 
 echo "Checking for required packages..."
 
-if apt_pkg_req "build-essential" &> /dev/null; then
-    sysupdate && apt_pkg_install "build-essential"
-fi
-if apt_pkg_req "libasound2-dev" &> /dev/null; then
-    sysupdate && apt_pkg_install "libasound2-dev"
-fi
 if apt_pkg_req "wiringpi" &> /dev/null; then
     sysupdate && apt_pkg_install "wiringpi"
 fi
@@ -183,11 +179,15 @@ echo "Enabling I2C interface..."
 sudo raspi-config nonint do_i2c 0
 sleep 1 && echo
 
-echo "Compiling & installing ALSA plugin..."
+echo "Installing ALSA plugin..."
 
-cd alsa-plugin
-make && sudo make install
-cd ..
+sudo cp ./dependencies/usr/local/lib/libphatmeter.so.0.0.0 /usr/local/lib/
+ln -s /usr/local/lib/libphatmeter.so.0.0.0 /usr/local/lib/libphatmeter.so.0 &> /dev/null
+ln -s /usr/local/lib/libphatmeter.so.0.0.0 /usr/local/lib/libphatmeter.so &> /dev/null
+pulseaudio -k &> /dev/null # kill pulseaudio daemon if running
+if [ -e $AUTOSTART ] && ! grep -q "@pulseaudio -k" $AUTOSTART; then
+    echo "@pulseaudio -k" >> $AUTOSTART
+fi # kills pulseaudio on boot
 
 echo -e "\nConfiguring sound output"
 
@@ -241,12 +241,12 @@ else
 fi
 
 if [ -e /etc/asound.conf ]; then
-    if [ -e /etc/asound.conf.old ]; then
-        sudo rm -f /etc/asound.conf.old
+    if [ -e /etc/asound.conf.backup ]; then
+        sudo rm -f /etc/asound.conf.backup
     fi
-    sudo mv /etc/asound.conf /etc/asound.conf.old
+    sudo mv /etc/asound.conf /etc/asound.conf.backup
 fi
-sudo cp ./alsa-plugin/asound.conf /etc/asound.conf
+sudo cp ./dependencies/etc/asound.conf /etc/asound.conf
 
 newline && success "All done!" && newline
 echo "Enjoy your new $productname!" && newline
