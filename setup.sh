@@ -238,10 +238,12 @@ else
     bcm2835off="yes"
 fi
 
-if [ -e /etc/asound.conf ]; then
-    if [ -e /etc/asound.conf.backup ]; then
-        sudo rm -f /etc/asound.conf.backup
-    fi
+if [ -f $HOME/.asound.conf ]; then
+    sudo rm -f $HOME/.asound.conf.backup &> /dev/null
+    sudo mv $HOME/.asound.conf $HOME/.asound.conf.backup
+fi
+if [ -f /etc/asound.conf ]; then
+    sudo rm -f /etc/asound.conf.backup &> /dev/null
     sudo mv /etc/asound.conf /etc/asound.conf.backup
 fi
 sudo cp ./dependencies/etc/asound.conf /etc/asound.conf
