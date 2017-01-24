@@ -28,10 +28,11 @@
 #include <math.h>
 #include <string.h>
 #include <errno.h>
-#include <alsa/asoundlib.h>
 #include <signal.h>
-#include <wiringPi.h>
-#include <wiringPiI2C.h>
+#include "phatmeter.h"
+
+#include "devices/blinkt.h"
+#include "devices/speaker-phat.h"
 
 
 #define BAR_WIDTH 70
@@ -44,28 +45,9 @@
 
 #define MAX_METERS 2
 
-int stupid_led_mappings[10] = {0, 1, 2, 4, 6, 8, 10, 12, 14, 16};
+struct device output_device;
+struct device output_device_2;
 
-typedef struct _snd_pcm_scope_ameter_channel {
-  int16_t levelchan;
-  int16_t peak;
-  unsigned int peak_age;
-  int16_t previous;
-} snd_pcm_scope_ameter_channel_t;
-
-typedef struct _snd_pcm_scope_ameter {
-  snd_pcm_t *pcm;
-  snd_pcm_scope_t *s16;
-  snd_pcm_scope_ameter_channel_t *channels;
-  snd_pcm_uframes_t old;
-  int top;
-  unsigned int decay_ms;
-  unsigned int peak_ms;
-  unsigned int led_brightness;
-  unsigned int bar_reverse;
-} snd_pcm_scope_ameter_t;
-
-int i2c = 0;
 int num_meters, num_scopes;
 //unsigned int led_brightness = 255;
 
@@ -146,7 +128,6 @@ static void level_update(snd_pcm_scope_t * scope)
   channels = snd_pcm_meter_get_channels(pcm);
 
   int meter_level = 0; 
-  int brightness = level->led_brightness;
 
   for (c = 0; c < channels; c++) {
     int16_t *ptr;
@@ -195,38 +176,10 @@ static void level_update(snd_pcm_scope_t * scope)
     
     //printf("Level: %d\n", meter_level);
 
-    //int bar = 1275.0f * log10(32768.0f / (lev + 320));
-    int bar = (meter_level / 10000.0f) * (brightness * 10.0f);
 
-    if(bar < 0) bar = 0;
-    if(bar > (brightness*10)) bar = (brightness*10);
-    //bar = 2550 - bar;
-
-
-    int led;
-    for(led = 0; led < 10; led++){
-       int val = 0, index = led;
-
-       if(bar > brightness){
-           val = brightness;
-           bar -= brightness;
-       }
-       else if(bar > 0){
-       	   val = bar;
-           bar = 0;
-       }
-       
-       if(level->bar_reverse == 1){
-		   index = 9 - led;
-	   }
-       
-       wiringPiI2CWriteReg8(i2c, 0x01 + stupid_led_mappings[index], val);
-    }
-    wiringPiI2CWriteReg8(i2c, 0x16, 0x01);
-
-
-  
-
+  //speaker-phat->update
+  output_device.update(meter_level, level);
+  output_device_2.update(meter_level, level);
 
   level->old = snd_pcm_meter_get_now(pcm);
 
@@ -294,16 +247,6 @@ int snd_pcm_scope_ameter_open(snd_pcm_t * pcm,
   return 0;
 }
 
-void clear_display(void){
-  int led;
-
-  for(led = 0; led < 18; led++){
-      wiringPiI2CWriteReg8(i2c, 0x01 + led, 0x0);
-  }
-
-  wiringPiI2CWriteReg8(i2c, 0x16, 0x01);
-}
-
 int _snd_pcm_scope_ameter_open(snd_pcm_t * pcm, const char *name,
 			       snd_config_t * root, snd_config_t * conf)
 {
@@ -314,23 +257,12 @@ int _snd_pcm_scope_ameter_open(snd_pcm_t * pcm, const char *name,
 
   num_meters = MAX_METERS;
   num_scopes = MAX_METERS;
-
-  //printf("Setting up i2c\n");
-
-  i2c = wiringPiI2CSetup(0x54);
-  if(i2c == -1){
-    fprintf(stderr, "Unable to connect to Speaker pHAT");
-    exit(1);
-  }
-
-  wiringPiI2CWriteReg8(i2c, 0x00, 0x01);
-  wiringPiI2CWriteReg8(i2c, 0x13, 0xff);
-  wiringPiI2CWriteReg8(i2c, 0x14, 0xff);
-  wiringPiI2CWriteReg8(i2c, 0x15, 0xff);
-
-  clear_display();
-
-  atexit(clear_display);
+  
+  output_device = blinkt();
+  output_device.init();
+  
+  output_device_2 = speaker_phat();
+  output_device_2.init();
  
   snd_config_for_each(i, next, conf) {
     snd_config_t *n = snd_config_iterator_entry(i);
