@@ -1,6 +1,6 @@
 all:
 	gcc -c phatmeter.c -fPIC -o phatmeter.o -lwiringPi -Wall -O2
-	gcc -shared phatmeter.o -lwiringPi -Wl,-soname -Wl,libphatmeter.so.0 -o libphatmeter.so.0.0.0
+	gcc -shared phatmeter.o -lasound -lwiringPi -Wl,-soname -Wl,libphatmeter.so.0 -o libphatmeter.so.0.0.0
 
 install:
 	cp libphatmeter.so.0.0.0 /usr/local/lib/
