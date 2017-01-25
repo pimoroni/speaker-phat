@@ -3,7 +3,7 @@
 #include <signal.h>
 #include <wiringPi.h>
 #include <wiringPiI2C.h>
-#include "../phatmeter.h"
+#include "../pimeter.h"
 
 #define DAT 23
 #define CLK 24

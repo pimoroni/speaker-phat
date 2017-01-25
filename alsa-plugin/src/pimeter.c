@@ -1,5 +1,5 @@
 /*
- *   phatmeter :  level meter ALSA plugin for Raspberry Pi HATs and pHATs
+ *   pimeter :  level meter ALSA plugin for Raspberry Pi HATs and pHATs
  *   Copyright (c) 2017 by Phil Howard <phil@pimoroni.com>
  *
  *   Derived from:
@@ -29,11 +29,15 @@
 #include <string.h>
 #include <errno.h>
 #include <signal.h>
-#include "phatmeter.h"
+#include "pimeter.h"
+#include <alsa/asoundlib.h>
 
+#ifdef WITH_DEVICE_BLINKT
 #include "devices/blinkt.h"
+#endif
+#ifdef WITH_DEVICE_SPEAKER_PHAT
 #include "devices/speaker-phat.h"
-
+#endif
 
 #define BAR_WIDTH 70
 /* milliseconds to go from 32767 to 0 */
@@ -46,7 +50,6 @@
 #define MAX_METERS 2
 
 struct device output_device;
-struct device output_device_2;
 
 int num_meters, num_scopes;
 //unsigned int led_brightness = 255;
@@ -176,10 +179,7 @@ static void level_update(snd_pcm_scope_t * scope)
     
     //printf("Level: %d\n", meter_level);
 
-
-  //speaker-phat->update
   output_device.update(meter_level, level);
-  output_device_2.update(meter_level, level);
 
   level->old = snd_pcm_meter_get_now(pcm);
 
@@ -203,7 +203,7 @@ snd_pcm_scope_ops_t level_ops = {
   reset:level_reset,
 };
 
-int snd_pcm_scope_ameter_open(snd_pcm_t * pcm,
+int snd_pcm_scope_pimeter_open(snd_pcm_t * pcm,
                   const char *name,
 			      unsigned int decay_ms,
 			      unsigned int peak_ms,
@@ -247,7 +247,7 @@ int snd_pcm_scope_ameter_open(snd_pcm_t * pcm,
   return 0;
 }
 
-int _snd_pcm_scope_ameter_open(snd_pcm_t * pcm, const char *name,
+int _snd_pcm_scope_pimeter_open(snd_pcm_t * pcm, const char *name,
 			       snd_config_t * root, snd_config_t * conf)
 {
   snd_config_iterator_t i, next;
@@ -258,12 +258,6 @@ int _snd_pcm_scope_ameter_open(snd_pcm_t * pcm, const char *name,
   num_meters = MAX_METERS;
   num_scopes = MAX_METERS;
   
-  output_device = blinkt();
-  output_device.init();
-  
-  output_device_2 = speaker_phat();
-  output_device_2.init();
- 
   snd_config_for_each(i, next, conf) {
     snd_config_t *n = snd_config_iterator_entry(i);
     const char *id;
@@ -326,9 +320,12 @@ int _snd_pcm_scope_ameter_open(snd_pcm_t * pcm, const char *name,
   if (led_brightness < 0) {
     led_brightness = LED_BRIGHTNESS;
   }
+ 
+  output_device = speaker_phat();
+  output_device.init();
 
-  return snd_pcm_scope_ameter_open(pcm, name, 
-                   decay_ms,
+  return snd_pcm_scope_pimeter_open(pcm, name, 
+                		   decay_ms,
 				   peak_ms, 
 				   led_brightness, 
 				   bar_reverse,
