@@ -1,7 +1,10 @@
-import time
+#!/usr/bin/env python
+
 import math
+import time
 
 import speakerphat
+
 
 speed = 4
 
@@ -11,4 +14,3 @@ while True:
     speakerphat.clear()
     speakerphat.set_led(offset,255)
     speakerphat.show()
-

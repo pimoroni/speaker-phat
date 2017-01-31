@@ -1,6 +1,11 @@
 import atexit
+from sys import exit
 
-import sn3218
+try:
+    import sn3218
+except ImportError:
+    exit("This library requires the sn3218 module\nInstall with: sudo pip install sn3218")
+
 
 stupid_led_mappings = [0, 1, 2, 4, 6, 8, 10, 12, 14, 16]
 
