@@ -35,5 +35,5 @@ show()
 
 `set_led(index, value)`
 
-index: led index between 0 to 9
+index: led index between 0 to 9   
 value: brightness between 0 and 255
