@@ -24,7 +24,7 @@ sudo pip3 install sn3218
 
 Use this API as follows:
 
-```
+```python
 from speaker-phat import clear, show, set_led
 
 clear()
