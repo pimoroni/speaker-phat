@@ -14,7 +14,6 @@ OTHER DEALINGS IN THE SOFTWARE.
 This script is licensed under the terms of the MIT license.
 Unless otherwise noted, code reproduced herein
 was written for this script.
-
 - The Pimoroni Crew -
 
 DISCLAIMER
@@ -26,7 +25,6 @@ scriptname="speakerphat-setup.sh" # the name of this script
 forcesudo="no" # whether the script requires to be ran with root privileges
 promptreboot="no" # whether the script should always prompt user to reboot
 
-FORCE=$1
 ASK_TO_REBOOT=false
 CURRENT_SETTING=false
 MIN_INSTALL=false
@@ -45,7 +43,7 @@ LOADMOD=/etc/modules
 # function define
 
 confirm() {
-    if [ "$FORCE" == '-y' ]; then
+    if [ "$1" == '-y' ]; then
         true
     else
         read -r -p "$1 [y/N] " response < /dev/tty
@@ -184,8 +182,6 @@ echo "Installing ALSA plugin..."
 sudo cp ./dependencies/usr/local/lib/libphatmeter.so.0.0.0 /usr/local/lib/
 ln -s /usr/local/lib/libphatmeter.so.0.0.0 /usr/local/lib/libphatmeter.so.0 &> /dev/null
 ln -s /usr/local/lib/libphatmeter.so.0.0.0 /usr/local/lib/libphatmeter.so &> /dev/null
-sudo rm /etc/xdg/autostart/pulseaudio.desktop &> /dev/null # stops pulseaudio spwaning on boot
-pulseaudio -k &> /dev/null # kill pulseaudio daemon if running
 
 echo -e "\nConfiguring sound output..."
 
@@ -248,7 +244,7 @@ fi
 sudo cp ./dependencies/etc/asound.conf /etc/asound.conf
 
 newline && success "All done!" && newline
-echo "Enjoy your new $productname!" && newline
+echo "Enjoy your $productname!" && newline
 
 if [ $promptreboot == "yes" ] || $ASK_TO_REBOOT; then
     sysreboot

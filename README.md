@@ -1,4 +1,4 @@
-# Speaker p HAT
+# Speaker pHAT
 
 This repository contains the software you need to get started with your Speaker pHAT.
 
