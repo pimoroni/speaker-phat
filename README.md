@@ -1,23 +1,22 @@
 # Speaker pHAT
 
-This repository contains the software you need to get started with your Speaker pHAT.
-
-# One-line Installation (Recommended)
+To install the software needed to setup your Speaker pHAT, use the one-line installer:
 
 Launch terminal then type:
 
-```
-curl -sS https://get.pimoroni.com/speakerphat | bash
-```
-
+`curl -sS https://get.pimoroni.com/speakerphat | bash`
 Setup will continue automatically.
 
-# Automatic Installation
+That's it, enjoy!
 
-* Clone this GitHub repository somewhere onto your Pi: `git clone https://github.com/pimoroni/speaker-phat`
 
-* Enter the new directory: `cd speaker-phat`
+# IMPORTAN NOTE
 
-* Run the installer: `sudo ./setup.sh`
 
-* Enjoy!
+This repository ONLY contains a basic python library that allows control of the SN3218 led driver used for the Speaker pHAT VU meter.
+
+The software used to drive the SN3218 as part of the ALSA stack can be found at:
+
+`https://github.com/pimoroni/pivumeter`
+
+issues not related to the python library presented in this repository should be reported at the above URL, thanks!
