@@ -2,13 +2,16 @@
 
 import math
 import time
+import sys
+
+sys.path.append('../python/')
 
 import speakerphat
 
 
 speed = 4
 
-while True:
+for i in range(1000):
     offset = int((math.sin(time.time() * speed) * 5) + 5)
 
     speakerphat.clear()
