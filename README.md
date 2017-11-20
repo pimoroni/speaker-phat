@@ -10,6 +10,24 @@ Setup will continue automatically.
 
 That's it, enjoy!
 
+# Uninstalling
+
+Back up `/etc/asound.conf` and then delete it. This file includes the configuration for volume control and Pi VU Meteron Speaker pHAT, but your Pi should default to a sane audio configuration without it.
+
+Make sure `dtparam=audio=on` is in `/boot/config.txt` and comment out the lines;
+
+```
+dtoverlay=i2s-mmap
+dtoverlay=hifiberry-dac
+```
+
+If you use the Pixel desktop you might want to re-add the volume control widget- we remove this because it interferes with audio configuration by spontaneously creating an `~/.asoundrc` config file.
+
+And if you want pulseaudio back (if you're using Raspbian < Stretch) you can (if it exists):
+
+```
+sudo mv /etc/xdg/autostart/pulseaudio.disabled /etc/xdg/autostart/pulseaudio.desktop
+```
 
 # IMPORTANT NOTE
 
